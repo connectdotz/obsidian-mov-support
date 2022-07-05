@@ -1,4 +1,11 @@
-/* Sets all the text color to red! */
-body {
-    color: red;
+
+.mov-support-live-preview {
+    pointer-events: initial;
+}
+.mov-support-preview {
+    pointer-events: initial;
+}
+
+.noHover {
+    pointer-events: none;
 }
