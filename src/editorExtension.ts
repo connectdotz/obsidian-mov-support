@@ -81,7 +81,9 @@ export const createEditorExtension = (pluginContext: MovExtPluginContext): Exten
 					for (const mutation of mutationList) {
 						if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
 							for (let node of mutation.addedNodes) {
-								replaceEmbedVideo(node as HTMLElement, this.vContext);
+								if (node.nodeType === Node.ELEMENT_NODE) {
+									replaceEmbedVideo(node as HTMLElement, this.vContext);
+								}
 							}
 						}
 					}

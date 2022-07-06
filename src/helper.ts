@@ -17,8 +17,7 @@ const getHTMLElementsByClass = (element: HTMLElement, className: string): HTMLEl
 		return found;
 	}
 	try {
-		// hasClass() sometimes crashed, possibly due to the element is not a HTMLElement?
-		if (element.classList?.contains(className)) {
+		if (element.hasClass(className)) {
 			found.push(element);
 		}
 		found.push(...(element.getElementsByClassName(className) as HTMLCollectionOf<HTMLElement>));
