@@ -1,14 +1,15 @@
-import { EditorView, ViewPlugin } from '@codemirror/view';
+import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { Extension } from '@codemirror/state';
 import {
+	EmbedVideoContext,
+	getFile,
 	getFileSourcePath,
+	OBSIDIAN_INTERNAL_EMBED_CLASS,
+	replaceEmbedVideo,
 	showPluginElements,
-	traverseElement,
-	VideoHelper,
-	videoHelper,
 } from './helper';
-import { MovSupportSettings, MovExtPluginContext } from './types';
-import { Editor, editorEditorField, editorLivePreviewField } from 'obsidian';
+import { MovSupportSettings, MovExtPluginContext, UnregisterListener } from './types';
+import { editorEditorField, editorLivePreviewField } from 'obsidian';
 
 const CLASS_NAME = 'mov-support-live-preview';
 /**
@@ -20,23 +21,28 @@ export const createEditorExtension = (pluginContext: MovExtPluginContext): Exten
 	ViewPlugin.fromClass(
 		class {
 			private observer: MutationObserver;
-			private _helper: VideoHelper | undefined;
+			private vContext: EmbedVideoContext;
+			private unregisterSettingListener: UnregisterListener;
 
 			constructor(private view: EditorView) {
+				this.vContext = {
+					app: pluginContext.app,
+					className: CLASS_NAME,
+					sourcePath: getFileSourcePath(this.view),
+				};
 				this.observer = this.createMutationObserver(view);
+				this.unregisterSettingListener = pluginContext.registerSettingsListener(
+					this.onSettingsSaved.bind(this)
+				);
 
-				pluginContext.registerSettingsListener(this.onSettingsSaved.bind(this));
+				this.updateLivePreview();
 			}
-			get helper() {
-				if (!this._helper) {
-					const sPath = getFileSourcePath(this.view);
-					if (sPath) {
-						this._helper = videoHelper(app, sPath, CLASS_NAME);
-					}
+
+			updateLivePreview() {
+				if (this.view.contentDOM) {
+					replaceEmbedVideo(this.view.contentDOM, this.vContext);
 				}
-				return this._helper;
 			}
-
 			onSettingsSaved(oldSettings: MovSupportSettings) {
 				if (pluginContext.settings.enableLivePreview === oldSettings.enableLivePreview) {
 					return;
@@ -44,10 +50,7 @@ export const createEditorExtension = (pluginContext: MovExtPluginContext): Exten
 
 				if (showPluginElements(CLASS_NAME, pluginContext.settings.enableLivePreview) <= 0) {
 					if (pluginContext.settings.enableLivePreview && this.isLivePreview()) {
-						console.log(
-							`<EditorExtension.onSettingsSaved> search and replace video for LivePreview`
-						);
-						this.helper.replaceEmbedVideo(this.view.contentDOM);
+						this.updateLivePreview();
 					}
 				}
 			}
@@ -66,26 +69,19 @@ export const createEditorExtension = (pluginContext: MovExtPluginContext): Exten
 					attributes: true,
 					childList: true,
 					subtree: true,
-					attributeFilter: ['internal-embed'],
+					attributeFilter: [OBSIDIAN_INTERNAL_EMBED_CLASS],
 				};
 
 				// Callback function to execute when mutations are observed
 				const callback: MutationCallback = (mutationList) => {
 					if (!pluginContext.settings.enableLivePreview) {
-						console.log(`<mutationObserver> disabled by settings`);
 						return;
 					}
-					if (!this.helper) {
-						console.log(
-							`<mutationObserver> abort, obsidian/cm state is not set up yet`
-						);
-						return;
-					}
-					// Use traditional 'for loops' for IE 11
+
 					for (const mutation of mutationList) {
 						if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
 							for (let node of mutation.addedNodes) {
-								this.helper.replaceEmbedVideo(node as HTMLElement);
+								replaceEmbedVideo(node as HTMLElement, this.vContext);
 							}
 						}
 					}
@@ -97,15 +93,22 @@ export const createEditorExtension = (pluginContext: MovExtPluginContext): Exten
 				// Start observing the target node for configured mutations
 				observer.observe(targetNode, config);
 				console.log(
-					`<editorExtension.createMutationObserver> dom mutation observer starts to observe`
+					`<editorExtension.createMutationObserver> dom mutation observer starts to observe ${
+						getFile(this.view)?.name
+					}`
 				);
 
 				return observer;
 			}
 
 			destroy() {
+				this.unregisterSettingListener();
 				this.observer.disconnect();
-				console.log(`<editorExtension.destory> dom mutation observer is disconnected`);
+				console.log(
+					`<editorExtension.destory> dom mutation observer is disconnected: ${
+						getFile(this.view)?.name
+					}`
+				);
 			}
 		}
 	);

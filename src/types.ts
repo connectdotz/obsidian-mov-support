@@ -5,11 +5,11 @@ export interface MovSupportSettings {
 	enablePreview: boolean;
 	enableExtensionRename: boolean;
 }
+export type UnregisterListener = () => void;
 export interface MovExtPluginContext {
 	readonly app: App;
 	readonly settings: MovSupportSettings;
-	registerSettingsListener: (f: OnSettingsSaved) => void;
-	unregisterSettingsListener: (f: OnSettingsSaved) => void;
+	registerSettingsListener: (f: OnSettingsSaved) => UnregisterListener;
 }
 
 export type OnSettingsSaved = (oldSettings: MovSupportSettings) => void;

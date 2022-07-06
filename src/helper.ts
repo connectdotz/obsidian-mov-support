@@ -1,24 +1,33 @@
 import { EditorView } from '@codemirror/view';
-import { App, editorViewField } from 'obsidian';
+import { App, editorViewField, TFile } from 'obsidian';
 
-export const traverseElement = (
-	element: HTMLElement,
-	onElement: (e: HTMLElement) => void
-): void => {
-	onElement(element);
-	for (let child of element.children) {
-		traverseElement(child as HTMLElement, onElement);
-	}
-};
-
-export const getFileSourcePath = (cmView: EditorView): string | undefined => {
+export const getFile = (cmView: EditorView): TFile | undefined => {
 	const mdView = cmView.state.field(editorViewField);
-	return mdView?.file?.path;
+	return mdView?.file;
 };
+export const getFileSourcePath = (cmView: EditorView): string | undefined => getFile(cmView)?.path;
 
 const NO_HOVER_CLASS = 'noHover';
 const ORIGINAL_VIDEO_ARIAL_LABEL = 'Open in default app';
+export const OBSIDIAN_INTERNAL_EMBED_CLASS = 'internal-embed';
 
+const getHTMLElementsByClass = (element: HTMLElement, className: string): HTMLElement[] => {
+	const found: HTMLElement[] = [];
+	if (!element) {
+		return found;
+	}
+	try {
+		// hasClass() sometimes crashed, possibly due to the element is not a HTMLElement?
+		if (element.classList?.contains(className)) {
+			found.push(element);
+		}
+		found.push(...(element.getElementsByClassName(className) as HTMLCollectionOf<HTMLElement>));
+		return found;
+	} catch (e) {
+		console.error(`<MovSupport.getHTMLElementsByClass> failed:`, e, `, element=`, element);
+		return [];
+	}
+};
 /**
  * change element's visibility by class
  * @param className
@@ -31,11 +40,9 @@ export const showPluginElements = (
 	show: boolean,
 	element?: HTMLElement
 ): number => {
-	const elements = (element ?? document.body).getElementsByClassName(className);
-	console.log(
-		`<showPluginElements> ${show ? 'show' : 'hide'} ${elements.length} ${className} elements:`,
-		elements
-	);
+	if (element) {
+	}
+	const elements = getHTMLElementsByClass(element ?? document.body, className);
 	for (const e of elements) {
 		(e as HTMLElement).toggle(show);
 		(e.previousElementSibling as HTMLElement)?.toggle(!show);
@@ -50,112 +57,109 @@ export const showPluginElements = (
 };
 
 export const onMovEmbedElement = (head: HTMLElement, handler: (e: HTMLElement) => void): void => {
-	const embedElements = head.getElementsByClassName('internal-embed');
-	if (embedElements.length <= 0) {
+	if (!head) {
 		return;
 	}
-	const matched: HTMLElement[] = [];
-	for (let e of embedElements) {
+	const embed = getHTMLElementsByClass(head, OBSIDIAN_INTERNAL_EMBED_CLASS);
+	for (let e of embed) {
 		const vSource = e.getAttribute('src');
 		if (vSource?.toLowerCase().endsWith('.mov')) {
 			handler(e as HTMLElement);
 		}
 	}
 };
-export const videoHelper = (app: App, sourcePath: string, className: string) => {
-	const getLinkPath = (link: string): string | undefined => {
-		const f = app.metadataCache.getFirstLinkpathDest(link, sourcePath);
-		const p = app.vault.getResourcePath(f);
-		return p;
-	};
 
-	const createVideo = (parent: Element, linkSrc: string): HTMLVideoElement | undefined => {
-		const absolutePath = getLinkPath(linkSrc);
-		if (absolutePath) {
-			const video = parent.createEl('video', { cls: className });
-			video.setAttribute('controls', 'true');
-			video.setAttribute('preload', 'metadata');
-			video.setAttribute('playsinline', 'true');
-			video.setAttribute('src', `${absolutePath}#t=0.001`);
-			video.setAttribute('type', 'video/mp4');
+export interface EmbedVideoContext {
+	app: App;
+	sourcePath: string;
+	className: string;
+}
 
-			video.onClickEvent((event) => {
-				event.preventDefault();
-				event.stopPropagation();
-
-				video.paused ? video.play() : video.pause();
-			});
-			return video;
-		} else {
-			console.error(
-				`<videoHelper.createVideo> failed to retrieve absolute path for resource: ${linkSrc}`
-			);
-		}
-	};
-
-	// when failed-embed-video element inserted to parent element, we replace it with an actual <video> element
-	const replaceVideoChild = (parent: HTMLElement, videoSrc?: string) => {
-		const vSource = videoSrc || parent.getAttribute('src');
-		console.log(
-			`<videoHelper.replaceVideoChild> replace child with video for ${vSource}:`,
-			parent
-		);
-		if (!vSource) {
-			console.error('<videoHelper.replaceVideoChild> no video src found');
-			throw new Error(`no video src found for embed element: ${parent.toString()}`);
-		}
-		// for mov file, we expect no video element be generated as it is not a supported media file format
-		if (parent.children.length === 1) {
-			//replace the div with video element
-			const video = createVideo(parent, vSource);
-			if (video) {
-				//disable parent hovering
-				parent.toggleClass(NO_HOVER_CLASS, true);
-				parent.setAttribute('aria-label', '');
-
-				// mark and hide the existing child
-				const original = parent.children[0] as HTMLElement;
-				original.toggle(false);
-
-				// append the new video child element
-				parent.appendChild(video);
-				console.log(
-					`<videoHelper.replaceVideoChild> replace mov with new video`,
-					video,
-					`, e=`,
-					parent
-				);
-			} else {
-				console.error(`<videoHelper.replaceVideoChild> failed to replace child with video`);
-				throw new Error('failed to replace child with video');
-			}
-		}
-	};
-
-	/**
-	 * find any internal embed node within the element, then add a proper mov video element accordingly
-	 * @param embedElement The parent element marked as 'internal-embed' node.
-	 * @return the number of elements converted
-	 */
-	const replaceEmbedVideo = (element: HTMLElement): void => {
-		onMovEmbedElement(element, (e) => {
-			replaceVideoChild(e);
-		});
-	};
-	/**
-	 * find the target view from worksplace and handle all matched embed mov elements
-	 * @param filter
-	 */
-	// const replaceVideoForView = (filter: (view: MarkdownView) => boolean) => {
-	// 	const leaves = app.workspace.getLeavesOfType('markdown');
-	// 	leaves.forEach((l) => {
-	// 		const mView = l.view as MarkdownView;
-	// 		if (filter(mView)) {
-	// 			replaceEmbedVideo(mView.containerEl);
-	// 		}
-	// 	});
-	// };
-
-	return { replaceEmbedVideo, replaceVideoChild };
+// export const videoHelper = (app: App, sourcePath: string, className: string) => {
+const getLinkPath = (link: string, sourcePath: string): string | undefined => {
+	const f = app.metadataCache.getFirstLinkpathDest(link, sourcePath);
+	const p = app.vault.getResourcePath(f);
+	return p;
 };
-export type VideoHelper = ReturnType<typeof videoHelper>;
+
+const createVideo = (
+	parent: Element,
+	linkSrc: string,
+	context: EmbedVideoContext
+): HTMLVideoElement | undefined => {
+	const absolutePath = getLinkPath(linkSrc, context.sourcePath);
+	if (absolutePath) {
+		const video = parent.createEl('video', { cls: context.className });
+		video.setAttribute('controls', 'true');
+		video.setAttribute('preload', 'metadata');
+		video.setAttribute('playsinline', 'true');
+		video.setAttribute('src', `${absolutePath}#t=0.001`);
+		video.setAttribute('type', 'video/mp4');
+
+		video.onClickEvent((event) => {
+			event.preventDefault();
+			event.stopPropagation();
+
+			video.paused ? video.play() : video.pause();
+		});
+		return video;
+	} else {
+		console.error(
+			`<videoHelper.createVideo> failed to retrieve absolute path for resource: ${linkSrc}`
+		);
+	}
+};
+
+// when failed-embed-video element inserted to parent element, we replace it with an actual <video> element
+export const replaceVideoChild = (
+	parent: HTMLElement,
+	context: EmbedVideoContext,
+	videoSrc?: string
+) => {
+	if (!parent) {
+		return;
+	}
+	const vSource = videoSrc || parent.getAttribute('src');
+	if (!vSource) {
+		console.error('<videoHelper.replaceVideoChild> no video src found');
+		throw new Error(`no video src found for embed element: ${parent.toString()}`);
+	}
+	// for mov file, we expect no video element be generated as it is not a supported media file format
+	if (parent.children.length === 1) {
+		//replace the div with video element
+		const video = createVideo(parent, vSource, context);
+		if (video) {
+			//disable parent hovering
+			parent.toggleClass(NO_HOVER_CLASS, true);
+			parent.setAttribute('aria-label', '');
+
+			// mark and hide the existing child
+			const original = parent.children[0] as HTMLElement;
+			original.toggle(false);
+
+			// append the new video child element
+			parent.appendChild(video);
+		} else {
+			console.error(`<videoHelper.replaceVideoChild> failed to replace child with video`);
+			throw new Error('failed to replace child with video');
+		}
+	}
+};
+
+/**
+ * find any internal embed node within the element, then add a proper mov video element accordingly
+ * @param embedElement The parent element marked as 'internal-embed' node.
+ * @return the number of elements converted
+ */
+export const replaceEmbedVideo = (
+	element: HTMLElement | undefined,
+	context: EmbedVideoContext
+): void => {
+	if (!element) {
+		return;
+	}
+
+	onMovEmbedElement(element, (e) => {
+		replaceVideoChild(e, context);
+	});
+};

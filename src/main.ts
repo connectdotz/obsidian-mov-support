@@ -118,18 +118,17 @@ export default class MovSupportPlugin
 		});
 	}
 
-	registerSettingsListener(listener: OnSettingsSaved) {
+	registerSettingsListener(listener: OnSettingsSaved): () => void {
 		this.settingsListeners.add(listener);
+		return () => {
+			this.settingsListeners.delete(listener);
+		};
 	}
-	unregisterSettingsListener(listener: OnSettingsSaved) {
-		this.settingsListeners.delete(listener);
-	}
+
 	onSettingChanged(setting: MovSupportSettings) {
 		const prev = { ...this.settings };
 		this.settings = { ...setting };
 		this.saveSettings().then(() => {
-			console.log(`<MovSupportPlugin> settings have been saved`);
-
 			if (prev.enableExtensionRename !== this.settings.enableExtensionRename) {
 				this.ribbonIconEl?.toggle(this.settings.enableExtensionRename);
 			}
@@ -138,6 +137,12 @@ export default class MovSupportPlugin
 		});
 	}
 	onunload() {
+		const prev = { ...this.settings };
+		this.settings.enableLivePreview = false;
+		this.settings.enablePreview = false;
+
+		this.settingsListeners.forEach((f) => f(prev));
+
 		console.log(`<MovSupportPlugin> unloaded`);
 	}
 

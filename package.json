@@ -4,10 +4,9 @@
 	"description": "An Obsidian (https://obsidian.md) plugin to support .mov attachments",
 	"main": "main.js",
 	"scripts": {
-		"dev": "node esbuild.config.mjs",
-		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
-		"version": "node version-bump.mjs && git add manifest.json versions.json",
-		"dev-publish": "yarn build && ./dev-rsync.sh"
+		"dev": "node esbuild.config.mjs sandbox",
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs prod no-watch",
+		"version": "node version-bump.mjs && git add manifest.json versions.json"
 	},
 	"keywords": [],
 	"author": "",
@@ -30,6 +29,7 @@
 		"@typescript-eslint/parser": "^5.2.0",
 		"builtin-modules": "^3.2.0",
 		"esbuild": "0.13.12",
+		"esbuild-plugin-copy-file": "^0.0.2",
 		"eslint-config-prettier": "^8.5.0",
 		"eslint-plugin-prettier": "^4.2.1",
 		"obsidian": "^0.14.8",

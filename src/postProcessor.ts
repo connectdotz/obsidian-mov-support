@@ -1,6 +1,12 @@
 import * as CodeMirror from 'codemirror';
 import { MarkdownPostProcessor, MarkdownView } from 'obsidian';
-import { onMovEmbedElement, showPluginElements, videoHelper } from './helper';
+import {
+	EmbedVideoContext,
+	onMovEmbedElement,
+	replaceEmbedVideo,
+	replaceVideoChild,
+	showPluginElements,
+} from './helper';
 import { MovSupportSettings, MovExtPluginContext } from './types';
 
 const CLASS_NAME = 'mov-support-preview';
@@ -8,6 +14,23 @@ const CLASS_NAME = 'mov-support-preview';
 export const createMarkdownPostProcessor = (
 	pluginContext: MovExtPluginContext
 ): MarkdownPostProcessor => {
+	const vContext: EmbedVideoContext = {
+		app: pluginContext.app,
+		className: CLASS_NAME,
+		sourcePath: '',
+	};
+	// update all previews in the workspace
+	const updatePreviews = () => {
+		const leaves = app.workspace.getLeavesOfType('markdown');
+		const localContext = { ...vContext };
+		leaves.forEach((l) => {
+			const mView = l.view as MarkdownView;
+			if (mView.getMode() === 'preview' && mView.contentEl) {
+				localContext.sourcePath = mView.file.path;
+				replaceEmbedVideo(mView.contentEl, localContext);
+			}
+		});
+	};
 	const onSettingsSaved = (oldSettings: MovSupportSettings) => {
 		if (pluginContext.settings.enablePreview === oldSettings.enablePreview) {
 			return;
@@ -15,23 +38,10 @@ export const createMarkdownPostProcessor = (
 
 		if (showPluginElements(CLASS_NAME, pluginContext.settings.enablePreview) <= 0) {
 			if (pluginContext.settings.enablePreview) {
-				const leaves = app.workspace.getLeavesOfType('markdown');
-				leaves.forEach((l) => {
-					const mView = l.view as MarkdownView;
-					if (mView.getMode() === 'preview') {
-						console.log(
-							`<MarkdownPostProcessor.onSettingsSaved> search and replace video for preview:`,
-							mView.contentEl
-						);
-						const vHelper = videoHelper(pluginContext.app, mView.file.path, CLASS_NAME);
-						vHelper.replaceEmbedVideo(mView.contentEl);
-					}
-				});
+				updatePreviews();
 			}
 		}
 	};
-
-	pluginContext.registerSettingsListener(onSettingsSaved);
 
 	/**
 	 * add a `"type": "video/mp4"` attribute for mov embed elements found within. These elements might be altered in other post-process,
@@ -41,16 +51,18 @@ export const createMarkdownPostProcessor = (
 
 	const postProcessor: MarkdownPostProcessor = (element, context) => {
 		if (!pluginContext.settings.enablePreview) {
-			console.log(`<handleMoeEmbed> disabled by settings`);
 			return;
 		}
 
-		const helper = videoHelper(pluginContext.app, context.sourcePath, CLASS_NAME);
+		const localContext = { ...vContext, sourcePath: context.sourcePath };
 		onMovEmbedElement(element, (e: HTMLElement) => {
 			// monitor the future "mov" elements
-			e.onNodeInserted(() => helper.replaceVideoChild(e), true);
+			e.onNodeInserted(() => replaceVideoChild(e, localContext), true);
 		});
 	};
+
+	pluginContext.registerSettingsListener(onSettingsSaved);
+	updatePreviews();
 
 	return postProcessor;
 };

@@ -1,6 +1,7 @@
 import esbuild from "esbuild";
 import process from "process";
-import builtins from 'builtin-modules'
+import builtins from 'builtin-modules';
+import copyFilePlugin from 'esbuild-plugin-copy-file';
 
 const banner =
 `/*
@@ -9,7 +10,46 @@ if you want to view the source, please visit the github repository of this plugi
 */
 `;
 
-const prod = (process.argv[2] === 'production');
+const SANDBOX_DEST="/Users/vsun/Library/Mobile Documents/iCloud~md~obsidian/Documents/sandbox/.obsidian/plugins/obsidian-mov-support"
+const PROD_DEST="/Users/vsun/Library/Mobile Documents/iCloud~md~obsidian/Documents/vsun-icloud/.obsidian/plugins/obsidian-mov-support"
+const PROD_MOBILE_DEST="/Users/vsun/Library/Mobile Documents/iCloud~md~obsidian/Documents/vsun-icloud/.obsidian-ios/plugins/obsidian-mov-support"
+
+
+const watch = (process.argv[3] === 'no-watch') ? false : true;
+
+let dest;
+let sourcemap;
+
+switch(process.argv[2]){
+	case 'prod':
+		dest = PROD_DEST; 
+		sourcemap = false;
+		break;
+	case 'prod-mobile':
+		dest = PROD_MOBILE_DEST; 
+		sourcemap = false;
+		break;
+	case 'sandbox':
+		dest = SANDBOX_DEST; 
+		sourcemap = 'inline';
+		break;
+	default:
+		console.error(`unrecognized argument: valid ones are "prod", "prod-mobile", "sandbox"`);
+		process.exit(1);
+}
+
+console.log(`esbuild "${process.argv[2]}" for dest: ${dest}`);
+
+// const main = `${dest}/main.js`;
+// const styles = `${dest}/styles.css`;
+// const manifest = `${dest}/manifest.json`;
+
+const copyConfig  = {};
+copyConfig[`${dest}/main.js`] = './main.js';
+copyConfig[`${dest}/styles.css`] ='./styles.css';
+copyConfig[`${dest}/manifest.json`] = './manifest.json',
+
+console.log(`copy config=`, copyConfig);
 
 esbuild.build({
 	banner: {
@@ -44,10 +84,13 @@ esbuild.build({
 		...builtins
 	],
 	format: 'cjs',
-	watch: !prod,
+	watch,
 	target: 'es2016',
 	logLevel: "info",
-	sourcemap: prod ? false : 'inline',
+	sourcemap,
 	treeShaking: true,
 	outfile: 'main.js',
+	plugins: [
+		copyFilePlugin({ after: copyConfig})
+	]
 }).catch(() => process.exit(1));
