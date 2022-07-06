@@ -4,7 +4,6 @@ import { MovSupportSettings } from './types';
 export const DEFAULT_SETTINGS: MovSupportSettings = {
 	enableLivePreview: true,
 	enablePreview: true,
-	enableExtensionRename: true,
 };
 
 export interface SettingChangeListener {
@@ -54,18 +53,6 @@ export class MovSupportSettingTab extends PluginSettingTab {
 					.setValue(this.setting.enablePreview)
 					.onChange((value) => {
 						this.setting.enablePreview = value;
-						this.plugin.onSettingChanged(this.setting);
-					});
-			});
-		new Setting(containerEl)
-			.setName('enable rename menu')
-			.setDesc('show context menu to rename .mov file to .mp4')
-			.addToggle((toggle) => {
-				toggle
-					.setTooltip('show context menu to rename .mov file to .mp4')
-					.setValue(this.setting.enableExtensionRename)
-					.onChange((value) => {
-						this.setting.enableExtensionRename = value;
 						this.plugin.onSettingChanged(this.setting);
 					});
 			});

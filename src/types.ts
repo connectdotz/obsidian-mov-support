@@ -3,7 +3,6 @@ import { App } from 'obsidian';
 export interface MovSupportSettings {
 	enableLivePreview: boolean;
 	enablePreview: boolean;
-	enableExtensionRename: boolean;
 }
 export type UnregisterListener = () => void;
 export interface MovExtPluginContext {
