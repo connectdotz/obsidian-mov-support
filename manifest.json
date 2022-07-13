@@ -3,8 +3,8 @@
 	"name": "MOV Support",
 	"version": "0.1.0",
 	"minAppVersion": "0.14.8",
-	"description": "An Obsidian plugin to support mov attachments",
-	"author": "vsun@connectdotz.com",
-	"authorUrl": "https://connectdotz.com",
+	"description": "to view/play embedded .mov video inline",
+	"author": "connectdotz",
+	"authorUrl": "https://github.com/connectdotz",
 	"isDesktopOnly": false
 }
