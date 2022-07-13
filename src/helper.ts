@@ -11,6 +11,16 @@ const NO_HOVER_CLASS = 'noHover';
 const ORIGINAL_VIDEO_ARIAL_LABEL = 'Open in default app';
 export const OBSIDIAN_INTERNAL_EMBED_CLASS = 'internal-embed';
 
+export const logger = (prefix: string, isDebug: boolean) => {
+	const label = `[MOVSupport/${prefix}]: `;
+	const debug = (...args: any[]) => (isDebug ? console.log(label, ...args) : {});
+	const warn = (...args: any[]) => console.warn(label, ...args);
+	const error = (...args: any[]) => console.error(label, ...args);
+
+	return { debug, warn, error };
+};
+const log = logger('helper', false);
+
 const getHTMLElementsByClass = (element: HTMLElement, className: string): HTMLElement[] => {
 	const found: HTMLElement[] = [];
 	if (!element) {
@@ -23,7 +33,7 @@ const getHTMLElementsByClass = (element: HTMLElement, className: string): HTMLEl
 		found.push(...(element.getElementsByClassName(className) as HTMLCollectionOf<HTMLElement>));
 		return found;
 	} catch (e) {
-		console.error(`<MovSupport.getHTMLElementsByClass> failed:`, e, `, element=`, element);
+		log.error(`<MovSupport.getHTMLElementsByClass> failed:`, e, `, element=`, element);
 		return [];
 	}
 };
@@ -34,14 +44,12 @@ const getHTMLElementsByClass = (element: HTMLElement, className: string): HTMLEl
  * @param element
  * @returns number of elements changed
  */
-export const showPluginElements = (
+export const togglePluginElements = (
+	element: HTMLElement,
 	className: string,
-	show: boolean,
-	element?: HTMLElement
+	show: boolean
 ): number => {
-	if (element) {
-	}
-	const elements = getHTMLElementsByClass(element ?? document.body, className);
+	const elements = getHTMLElementsByClass(element, className);
 	for (const e of elements) {
 		(e as HTMLElement).toggle(show);
 		(e.previousElementSibling as HTMLElement)?.toggle(!show);
@@ -103,20 +111,24 @@ const createVideo = (
 		});
 		return video;
 	} else {
-		console.error(
-			`<videoHelper.createVideo> failed to retrieve absolute path for resource: ${linkSrc}`
-		);
+		log.error(`<createVideo> failed to retrieve absolute path for resource: ${linkSrc}`);
 	}
 };
 
-// when failed-embed-video element inserted to parent element, we replace it with an actual <video> element
+/**
+ * replace qualified mov embed element with new video element. If the video element already existed, ensure to turn it on. Return false if no action is taken.
+ * @param parent
+ * @param context
+ * @param videoSrc
+ * @returns true if replace occurred, otherwise false.
+ */
 export const replaceVideoChild = (
 	parent: HTMLElement,
 	context: EmbedVideoContext,
 	videoSrc?: string
-) => {
+): boolean => {
 	if (!parent) {
-		return;
+		return false;
 	}
 	const vSource = videoSrc || parent.getAttribute('src');
 	if (!vSource) {
@@ -138,27 +150,38 @@ export const replaceVideoChild = (
 
 			// append the new video child element
 			parent.appendChild(video);
+			return true;
 		} else {
 			console.error(`<videoHelper.replaceVideoChild> failed to replace child with video`);
 			throw new Error('failed to replace child with video');
 		}
+	} else {
+		// it's possible the video element already exist but is in the "off" mode, turn it on in that case
+		if (togglePluginElements(parent, context.className, true) > 0) {
+			return true;
+		}
 	}
+	return false;
 };
 
 /**
  * find any internal embed node within the element, then add a proper mov video element accordingly
  * @param embedElement The parent element marked as 'internal-embed' node.
- * @return the number of elements converted
+ * @return the number of video elements replaced
  */
 export const replaceEmbedVideo = (
 	element: HTMLElement | undefined,
 	context: EmbedVideoContext
-): void => {
+): number => {
 	if (!element) {
 		return;
 	}
 
+	let count = 0;
 	onMovEmbedElement(element, (e) => {
-		replaceVideoChild(e, context);
+		if (replaceVideoChild(e, context)) {
+			count++;
+		}
 	});
+	return count;
 };

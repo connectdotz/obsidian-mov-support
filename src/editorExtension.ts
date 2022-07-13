@@ -4,9 +4,10 @@ import {
 	EmbedVideoContext,
 	getFile,
 	getFileSourcePath,
+	logger,
 	OBSIDIAN_INTERNAL_EMBED_CLASS,
 	replaceEmbedVideo,
-	showPluginElements,
+	togglePluginElements,
 } from './helper';
 import { MovSupportSettings, MovExtPluginContext, UnregisterListener } from './types';
 import { editorEditorField, editorLivePreviewField } from 'obsidian';
@@ -23,6 +24,7 @@ export const createEditorExtension = (pluginContext: MovExtPluginContext): Exten
 			private observer: MutationObserver;
 			private vContext: EmbedVideoContext;
 			private unregisterSettingListener: UnregisterListener;
+			private log = logger('editorExtension', pluginContext.isDebug);
 
 			constructor(private view: EditorView) {
 				this.vContext = {
@@ -48,8 +50,12 @@ export const createEditorExtension = (pluginContext: MovExtPluginContext): Exten
 					return;
 				}
 
-				if (showPluginElements(CLASS_NAME, pluginContext.settings.enableLivePreview) <= 0) {
-					if (pluginContext.settings.enableLivePreview && this.isLivePreview()) {
+				this.toggle(pluginContext.settings.enableLivePreview);
+			}
+
+			toggle(show: boolean) {
+				if (togglePluginElements(this.view.contentDOM, CLASS_NAME, show) <= 0) {
+					if (show && this.isLivePreview()) {
 						this.updateLivePreview();
 					}
 				}
@@ -94,22 +100,20 @@ export const createEditorExtension = (pluginContext: MovExtPluginContext): Exten
 
 				// Start observing the target node for configured mutations
 				observer.observe(targetNode, config);
-				console.log(
-					`<editorExtension.createMutationObserver> dom mutation observer starts to observe ${
+				this.log.debug(
+					`<createMutationObserver> dom mutation observer starts to observe ${
 						getFile(this.view)?.name
 					}`
 				);
-
 				return observer;
 			}
 
 			destroy() {
 				this.unregisterSettingListener();
 				this.observer.disconnect();
-				console.log(
-					`<editorExtension.destory> dom mutation observer is disconnected: ${
-						getFile(this.view)?.name
-					}`
+				this.toggle(false);
+				this.log.debug(
+					`<destory> dom mutation observer is disconnected: ${getFile(this.view)?.name}`
 				);
 			}
 		}

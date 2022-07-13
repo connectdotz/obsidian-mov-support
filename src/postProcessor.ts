@@ -1,11 +1,13 @@
 import * as CodeMirror from 'codemirror';
 import { MarkdownPostProcessor, MarkdownView } from 'obsidian';
+
 import {
 	EmbedVideoContext,
+	logger,
 	onMovEmbedElement,
 	replaceEmbedVideo,
 	replaceVideoChild,
-	showPluginElements,
+	togglePluginElements,
 } from './helper';
 import { MovSupportSettings, MovExtPluginContext } from './types';
 
@@ -19,28 +21,43 @@ export const createMarkdownPostProcessor = (
 		className: CLASS_NAME,
 		sourcePath: '',
 	};
-	// update all previews in the workspace
-	const updatePreviews = () => {
+	const log = logger('postProcessor', pluginContext.isDebug);
+	const previewEl = (mView: MarkdownView): HTMLElement | undefined =>
+		mView.previewMode?.containerEl ?? (mView.getMode() === 'preview' && mView.contentEl);
+	const forEachMarkdownView = (callBack: (mView: MarkdownView) => void) => {
 		const leaves = app.workspace.getLeavesOfType('markdown');
-		const localContext = { ...vContext };
 		leaves.forEach((l) => {
 			const mView = l.view as MarkdownView;
-			if (mView.getMode() === 'preview' && mView.contentEl) {
-				localContext.sourcePath = mView.file.path;
-				replaceEmbedVideo(mView.contentEl, localContext);
+			if (mView.containerEl) {
+				callBack(mView);
 			}
 		});
+	};
+	// update all previews in the workspace
+	const updatePreviews = () => {
+		forEachMarkdownView(updatePreview);
+	};
+	const updatePreview = (mView?: MarkdownView): void => {
+		replaceEmbedVideo(previewEl(mView), { ...vContext, sourcePath: mView.file.path });
 	};
 	const onSettingsSaved = (oldSettings: MovSupportSettings) => {
 		if (pluginContext.settings.enablePreview === oldSettings.enablePreview) {
 			return;
 		}
 
-		if (showPluginElements(CLASS_NAME, pluginContext.settings.enablePreview) <= 0) {
-			if (pluginContext.settings.enablePreview) {
-				updatePreviews();
+		forEachMarkdownView((mView: MarkdownView) => {
+			if (
+				togglePluginElements(
+					previewEl(mView),
+					CLASS_NAME,
+					pluginContext.settings.enablePreview
+				) <= 0
+			) {
+				if (pluginContext.settings.enablePreview) {
+					updatePreview(mView);
+				}
 			}
-		}
+		});
 	};
 
 	/**
