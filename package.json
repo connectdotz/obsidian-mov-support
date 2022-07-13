@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-mov-to-mp4",
+	"name": "obsidian-mov-support",
 	"version": "0.1.0",
-	"description": "An Obsidian (https://obsidian.md) plugin to support .mov attachments",
+	"description": "An Obsidian (https://obsidian.md) plugin to view/play embeded .mov video inline",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs sandbox",
