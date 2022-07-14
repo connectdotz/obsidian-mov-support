@@ -1,25 +1,23 @@
 # Obsidian MOV Support 
 
-A non-intrusive [Obsidian](https://obsidian.md/) plugin to view and play embedded `.mov` file inline for all platforms. 
-
-## How to use it?
-
-Just [install](#installation) the plugin; that's it. 
-
-After installation, all embedded `.mov` files should be rendered like other supported video formats. 
-
-This plugin is **non-intrusive** and only intercepts the rendering process. It will not change the attachment filenames or the file contents.
-
-### Settings
-You can selectively turn on/off the `MOV Support` for LivePreview and Preview modes in the Settings tab.
-
-## Demo
+A simple and non-intrusive [Obsidian](https://obsidian.md/) plugin to view and play embedded `.mov` file inline. 
 
 ### desktop
 ![demo-desktop](media/demo-desktop.png)
 
 ### mobile
 ![demo-mobile](media/demo-mobile.png)
+
+## How to use it?
+
+Just [install](#installation) the plugin; that's it. 
+
+Once installed, all embedded `.mov` files should be rendered like other supported video formats. 
+
+### Settings
+You can selectively turn on/off the `MOV Support` for LivePreview and Preview modes in the Settings tab:
+
+![settings](media/settings.png)
 
 ## Installation
 ### From Obsidian
